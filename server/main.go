@@ -2,53 +2,46 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
+	"os"
 )
 
-var dict = map[string]string{
-	"red":    "qizil",
-	"green":  "yashil",
-	"blue":   "k'ok",
-	"yellow": "sariq",
-}
-
 func main() {
-	listener, err := net.Listen("tcp", ":4545")
+	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Serverni ochishda xatolik:", err)
 		return
 	}
-	defer listener.Close()
+	defer ln.Close()
+	fmt.Println("Malumot kutilyabti...")
 
-	fmt.Println("Server is listening...")
 	for {
-		conn, err := listener.Accept()
+		conn, err := ln.Accept()
 		if err != nil {
-			fmt.Println(err)
-			conn.Close()
+			fmt.Println("Klient bilan bog'lanishda xatolik:", err)
 			continue
 		}
-		go handleConnection(conn)
+
+		fmt.Println("Yangi klient ulandi:", conn.RemoteAddr())
+		receiveFile(conn)
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func receiveFile(conn net.Conn) {
 	defer conn.Close()
-	for {
-		input := make([]byte, (1024 * 4))
-		n, err := conn.Read(input)
-		if n == 0 || err != nil {
-			fmt.Println("Read error:", err)
-			break
-		}
-		source := string(input[0:n])
 
-		target, ok := dict[source]
-		if !ok {
-			target = "undefined"
-		}
-
-		fmt.Println(source, "-", target)
-		conn.Write([]byte(target))
+	receivedFile, err := os.Create("receiveFile.txt")
+	if err != nil {
+		fmt.Println("Faylni yaratishda xatolik:", err)
+		return
 	}
+	defer receivedFile.Close()
+	_, err = io.Copy(receivedFile, conn)
+	if err != nil {
+		fmt.Println("Faylni yozishda xatolik:", err)
+		return
+	}
+
+	fmt.Println("Fayl muvaffaqiyatli qabul qilindi.")
 }
